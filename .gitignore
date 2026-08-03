@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Environment / secrets — NEVER commit real keys
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Archives / snapshots
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
