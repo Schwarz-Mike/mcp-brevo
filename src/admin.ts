@@ -8,9 +8,11 @@ import bcrypt from "bcrypt";
 
 import { config } from "./config.js";
 import { encrypt, decrypt } from "./crypto.js";
-import { renderLogin, renderAdmin } from "./views.js";
+import { safeNext } from "./routing.js";
+import { renderLogin, renderAdmin, renderDashboard } from "./views.js";
 import {
   listUsers,
+  listTenantsByOwner,
   getUserById,
   getUserByUsername,
   createUser,
@@ -45,7 +47,22 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
       res.status(401).json({ error: "Sitzung abgelaufen. Bitte neu einloggen.", reauth: true });
       return;
     }
-    res.redirect("/login?next=/admin");
+    // Logged in but not an admin: send them to their own dashboard. Redirecting
+    // back to /login here would loop, because /login forwards a logged-in user
+    // straight back to the page they came from.
+    res.redirect(req.session.userId ? "/dashboard" : "/login?next=/admin");
+    return;
+  }
+  next();
+}
+
+function requireLogin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.session.userId) {
+    if (wantsJson(req)) {
+      res.status(401).json({ error: "Sitzung abgelaufen. Bitte neu einloggen.", reauth: true });
+      return;
+    }
+    res.redirect("/login?next=/dashboard");
     return;
   }
   next();
@@ -54,11 +71,18 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 export function mountAdmin(app: Express): void {
   // ---- Login / logout ----
   app.get("/login", (req, res) => {
-    if (req.session.userId) return res.redirect((req.query.next as string) || "/admin");
+    if (req.session.userId) return res.redirect(safeNext(req.query.next, req.session.userRole));
     res.send(renderLogin());
   });
   app.get("/logout", (req, res) => {
     req.session.destroy(() => res.redirect("/login"));
+  });
+
+  // ---- User dashboard (any logged-in user) ----
+  app.get("/dashboard", requireLogin, (req, res) => {
+    const user = getUserById(req.session.userId!);
+    if (!user) return req.session.destroy(() => res.redirect("/login"));
+    res.send(renderDashboard(user, config.baseUrl, listTenantsByOwner(user.id)));
   });
 
   // ---- Admin page ----

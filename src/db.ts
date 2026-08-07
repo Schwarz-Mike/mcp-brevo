@@ -196,6 +196,12 @@ export function listTenants(): TenantRow[] {
     .all() as unknown as TenantRow[];
 }
 
+export function listTenantsByOwner(userId: number): TenantRow[] {
+  return db
+    .prepare("SELECT * FROM tenants WHERE owner_user_id = ? ORDER BY created_at DESC")
+    .all(userId) as unknown as TenantRow[];
+}
+
 export function createTenant(t: {
   owner_user_id: number;
   name: string;

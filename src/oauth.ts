@@ -12,6 +12,7 @@ import { nanoid } from "nanoid";
 import crypto from "node:crypto";
 
 import { config } from "./config.js";
+import { safeNext } from "./routing.js";
 import { renderLogin, renderAuthorize } from "./views.js";
 import {
   getUserByUsername,
@@ -182,8 +183,7 @@ export function mountOAuth(app: Express): void {
     req.session.userId = user.id;
     req.session.userRole = user.role;
     if (req.session.oauth) return res.redirect("/oauth/authorize");
-    const next = typeof req.body.next === "string" && req.body.next ? req.body.next : "/admin";
-    res.redirect(next);
+    res.redirect(safeNext(req.body.next, user.role));
   });
 
   // ---- Consent (POST): issue authorization code ----

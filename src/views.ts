@@ -91,6 +91,83 @@ export function renderAuthorize(tenantLabel: string | null): string {
 }
 
 // ------------------------------------------------------------------
+// User dashboard (non-admin landing page)
+// ------------------------------------------------------------------
+
+export function renderDashboard(user: UserRow, baseUrl: string, tenants: TenantRow[]): string {
+  const rows =
+    tenants
+      .map((t) => {
+        const url = `${baseUrl}/${t.name}`;
+        const last = t.last_called_at
+          ? new Date(t.last_called_at).toLocaleString("de-CH", { dateStyle: "short", timeStyle: "short" })
+          : "—";
+        return `<tr>
+      <td><b>${esc(t.label || t.name)}</b><div style="font-size:11px;color:#888"><code>${esc(t.name)}</code></div></td>
+      <td style="font-size:12px;white-space:nowrap"><code>${esc(url)}</code>
+        <button type="button" onclick="copyUrl('${esc(url)}')" title="URL kopieren" style="margin-left:6px;border:1px solid #ddd;border-radius:3px;background:#fff;font-size:11px;padding:2px 6px">📋</button></td>
+      <td style="font-size:12px;white-space:nowrap">${last}</td>
+      <td style="font-size:12px;text-align:right">${t.call_count}</td>
+    </tr>`;
+      })
+      .join("") ||
+    '<tr><td colspan="4" style="color:#aaa;text-align:center;padding:20px">Für dieses Konto ist noch kein Brevo-Zugang hinterlegt.</td></tr>';
+
+  const firstName = tenants.length ? tenants[0].name : "mein-konto";
+
+  return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Brevo MCP — Mein Zugang</title>
+<style>
+${CSS}
+  .wrap{max-width:900px;margin:24px auto;padding:0 20px}
+  nav{background:#fff;border-bottom:1px solid #e0e0e0;padding:0 24px;display:flex;align-items:center;height:54px}
+  nav .brand{font-weight:700;font-size:15px;margin-right:auto}
+  nav a{color:#0b7285;font-size:13px;margin-left:16px;text-decoration:none}
+  .panel{background:#fff;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:22px;margin-bottom:22px;max-width:none}
+  h3{margin:0 0 14px;font-size:17px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 10px;border-bottom:1px solid #f0f0f0;text-align:left;vertical-align:middle}
+  th{font-weight:600;color:#555;background:#fafafa}
+  code{background:#eef;padding:2px 5px;border-radius:3px;font-size:12px}
+  #alert{position:fixed;top:12px;right:12px;z-index:50}
+  .toast{padding:10px 16px;border-radius:6px;font-size:13px;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);background:#e7f6ec;border:1px solid #a3d9b1;color:#1e7d34}
+</style></head><body>
+<nav><div class="brand">Brevo MCP</div>
+  <span style="font-size:13px;color:#555">Angemeldet als <b>${esc(user.username)}</b></span>
+  ${user.role === "admin" ? '<a href="/admin">Admin</a>' : ""}
+  <a href="/logout">Abmelden</a></nav>
+<div id="alert"></div>
+<div class="wrap">
+  <div class="panel">
+    <h3>Mein Brevo-Zugang</h3>
+    <table>
+      <thead><tr><th>Konto</th><th>Connector-URL für Claude</th><th>Letzter Aufruf</th><th>#</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>Mit Claude verbinden</h3>
+    <ol style="color:#444;font-size:14px;line-height:1.9">
+      <li>In <b>Claude</b> auf <b>Einstellungen</b> → <b>Konnektoren</b> gehen</li>
+      <li><b>Benutzerdefinierten Konnektor hinzufügen</b> wählen</li>
+      <li>Einen Namen vergeben und die Connector-URL von oben einsetzen, z.B. <code>${esc(baseUrl)}/${esc(firstName)}</code></li>
+      <li>Claude öffnet ein Anmeldefenster — hier mit diesen Zugangsdaten anmelden und auf <b>Zugriff erlauben</b> klicken</li>
+    </ol>
+    <p style="font-size:13px;color:#888">Danach stehen in Claude die Brevo-Funktionen zur Verfügung: E-Mails senden, Kontakte und Listen verwalten, Kampagnen und Statistiken abrufen.</p>
+  </div>
+</div>
+<script>
+function copyUrl(u){navigator.clipboard.writeText(u).then(function(){
+  var a=document.getElementById('alert'),d=document.createElement('div');
+  d.className='toast';d.textContent='URL kopiert!';a.appendChild(d);
+  setTimeout(function(){d.remove();},3000);
+});}
+</script>
+</body></html>`;
+}
+
+// ------------------------------------------------------------------
 // Admin dashboard
 // ------------------------------------------------------------------
 

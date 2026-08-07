@@ -15,6 +15,7 @@ import { initDb, cleanupExpired, getUserByUsername, createUser, getTenantByName,
 import { decrypt } from "./crypto.js";
 import { mountOAuth, getBearerUserId } from "./oauth.js";
 import { mountAdmin } from "./admin.js";
+import { homeFor } from "./routing.js";
 import { handleTenantMcp } from "./mcp-http.js";
 
 const BASE_URL = config.baseUrl;
@@ -94,7 +95,7 @@ mountOAuth(app);
 mountAdmin(app);
 
 app.get("/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
-app.get("/", (_req, res) => res.redirect("/admin"));
+app.get("/", (req, res) => res.redirect(req.session.userId ? homeFor(req.session.userRole) : "/login"));
 
 // ------------------------------------------------------------------
 // Tenant MCP endpoint — MUST be registered last (single-segment wildcard).
