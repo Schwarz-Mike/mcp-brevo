@@ -1,5 +1,33 @@
 # Changelog
 
+## [4.0.1] – 2026-08-07 — Fix non-admin login loop + user dashboard
+
+### Fixed
+- **Logging in as a non-admin produced `ERR_TOO_MANY_REDIRECTS`.** A user with
+  role `user` was redirected to `/admin` after login; `requireAdmin` bounced to
+  `/login?next=/admin`; `/login` saw an established session and forwarded
+  straight back to `/admin` — an endless loop. There was also no landing page
+  for non-admins at all.
+  - New `src/routing.ts`: `homeFor(role)` (admin → `/admin`, user →
+    `/dashboard`) and `safeNext()`, which accepts only local paths (no
+    `//host` or absolute URLs) and **never routes a non-admin to `/admin`** —
+    that guard is what actually closes the loop.
+  - `POST /oauth/login`, `GET /login` and `GET /` now route by role instead of
+    hardcoding `/admin`. `requireAdmin` sends a logged-in non-admin to
+    `/dashboard` (only an anonymous visitor still goes to `/login`).
+
+### Added
+- **`GET /dashboard`** — landing page for any logged-in user: their own tenants
+  with connector URLs (copy button), last call / call count, and the Claude
+  connection guide. Read-only; all management stays in `/admin`.
+- `listTenantsByOwner(userId)` in `src/db.ts`.
+
+Verified locally and live: user login, `/admin`, `/`, `/login` and
+`/login?next=/admin` all resolve in at most one hop to `/dashboard` 200;
+admin routing unchanged.
+
+---
+
 ## [4.0.0] – 2026-08-05 — Remote, multi-tenant, self-hosted OAuth 2.1
 
 Complete migration from a **local stdio** MCP server (v3) to a **remote,

@@ -22,9 +22,11 @@ Claude ──OAuth 2.1 (PKCE)──►  mcp-brevo.mikeschwarz.ch/{tenant}  ─�
 - **Owner-scoped tokens**: an access token carries `user_id`; `/{tenant}` only
   serves requests whose token belongs to `tenant.owner_user_id`. So each
   customer logs in with their own account and can reach only their own tenant.
-- **Roles**: `admin` (dashboard access at `/admin`) and `user` (can OAuth-connect
-  their own tenants, no dashboard). Everything can live under one admin, or each
-  tenant can be reassigned to its own user.
+- **Roles**: `admin` → `/admin` (manage users, tenants, keys) and `user` →
+  `/dashboard` (read-only: own tenants, connector URLs, Claude guide).
+  Everything can live under one admin, or each tenant can be reassigned to its
+  own user. Post-login routing goes through `homeFor(role)`/`safeNext()` in
+  `src/routing.ts` — see lesson 9.
 
 ## Infrastructure
 
@@ -76,7 +78,8 @@ ADMIN_EMAIL=mike.schwarz@hypnosetherapie.pro
 ```
 src/server.ts     Express wiring, admin seed, /:tenant router (registered last)
 src/oauth.ts      OAuth 2.1: discovery, DCR, authorize, login, token, getBearerUserId
-src/admin.ts      /login, /logout, /admin + user & tenant CRUD, key test
+src/admin.ts      /login, /logout, /dashboard, /admin + user & tenant CRUD, key test
+src/routing.ts    homeFor(role) + safeNext() — role-based post-login routing
 src/views.ts      login / consent / admin HTML (client JS uses string concat, never ${})
 src/db.ts         node:sqlite schema + typed helpers
 src/crypto.ts     AES-256-GCM
@@ -182,6 +185,26 @@ owner's tokens stop working on that endpoint, and any existing Claude connector
 for it must be re-connected under the new account. Verified: after moving
 `harmonisch` to `info@harmonisches-miteinander.ch`, the admin token gets `401`
 there while the new user's token works.
+
+### 9. Auth guards that redirect to a login page can loop
+Non-admin login gave `ERR_TOO_MANY_REDIRECTS`: login sent every user to
+`/admin` → `requireAdmin` redirected to `/login?next=/admin` → `/login` saw a
+valid session and forwarded back to `/admin` → repeat. Two rules prevent this
+class of bug:
+1. **A guard must not redirect an *authenticated* user to the login page.**
+   Being logged in but unauthorized is `403`-shaped, not `401`-shaped — send
+   them somewhere they *may* go (here `/dashboard`). Only anonymous visitors
+   get `/login`.
+2. **Never route a role to a page its own guard will reject** — `safeNext()`
+   rewrites `/admin` to the role's home for non-admins, so even a crafted
+   `?next=/admin` cannot re-arm the loop.
+
+Diagnosis tip: trace redirects without following them
+(`curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n'`, or `fetch` with
+`redirect: 'manual'`) and assert every entry point settles in ≤ 1 hop. The loop
+is invisible in a normal browser session beyond the error page.
+
+---
 
 ### 8. Public repo → no secrets in code
 The admin password is seeded from `ADMIN_PASSWORD` (env), never hardcoded (the
