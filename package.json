@@ -1,6 +1,6 @@
 {
   "name": "mcp-brevo",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Multi-tenant remote MCP server for Brevo with self-hosted OAuth 2.1 (Contacts, Lists, Folders, Transactional Emails & Campaigns)",
   "main": "build/server.js",
   "type": "commonjs",
